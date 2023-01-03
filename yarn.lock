@@ -7393,10 +7393,10 @@ relateurl@0.2.x:
   resolved "https://registry.npmjs.org/relateurl/-/relateurl-0.2.7.tgz#54dbf377e51440aca90a4cd274600d3ff2d888a9"
   integrity sha512-G08Dxvm4iDN3MLM0EsP62EDV9IuhXPR6blNz6Utcp7zyV3tr4HVNINt6MpaRWbxoOHT3Q7YN2P+jaHX8vUbgog==
 
-relation-graph@^2.0.7:
-  version "2.0.7"
-  resolved "https://registry.npmjs.org/relation-graph/-/relation-graph-2.0.7.tgz#9cdc3e888f4f61603f2d8d45dd418ad441710298"
-  integrity sha512-8Egm9uY7Om3OnOWrA4clCPvpJYTTnrpvSUNLPkmfIcXS8tfnBqN0uUVCmEIH/UwdRb8ATF3N44tqNaPzaqg55A==
+relation-graph@^2.0.8:
+  version "2.0.8"
+  resolved "https://registry.npmjs.org/relation-graph/-/relation-graph-2.0.8.tgz#35a6c3bd55da77e8b353a72f102270e2a6979a2b"
+  integrity sha512-bYGjMcAxcvo4PKxaAAUNB+mdplG/yFlA4S24feULuRT6AldW5BNdbZ822qOwiD4bJwTIWm/ea03TVTPJscakpA==
   dependencies:
     html2canvas "^1.4.1"
     screenfull "^5.1.0"
