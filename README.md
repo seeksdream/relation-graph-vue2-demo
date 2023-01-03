@@ -3,28 +3,47 @@
 ## Installation
 
 ```sh
-pnpm add pinia-plugin-persistedstate-2
+yarn
+```
+## Start
+
+```sh
+yarn start 
 ```
 
-## Usage
+## Usage 
+
+打开并按照如下代码注释说明修改 src/App.vue
 
 ```diff
-// src/main.js
+// 
 
-import Vue from 'vue'
-import App from './App.vue'
-import { createPinia, PiniaVuePlugin } from 'pinia'
-+ import { createPersistedStatePlugin } from 'pinia-plugin-persistedstate-2'
+<template>
+  <div>
+    <CurrentDemo />
+  </div>
+</template>
 
-Vue.config.productionTip = false
+<script>
+// 以下，你想使用哪个demo，打开对应的注释即可
+import CurrentDemo from './demo/Simple';
+// import CurrentDemo from './demo/Layout-force';
+// import CurrentDemo from './demo/Demo4AdvLineSlot';
+// 所有的demo都在../demo文件中，你想要使用哪个，像上面一样引入即可
 
-Vue.use(PiniaVuePlugin)
-const pinia = createPinia()
-+ const installPersistedStatePlugin = createPersistedStatePlugin()
-+ pinia.use((context) => installPersistedStatePlugin(context))
+export default {
+  name: "App",
+  components: { CurrentDemo },
+  data() {
+    return {
+    };
+  },
+  mounted() {
+  },
+  methods: {
+  }
+};
+</script>
 
-new Vue({
-  render: (h) => h(App),
-  pinia,
-}).$mount('#app')
+
 ```
