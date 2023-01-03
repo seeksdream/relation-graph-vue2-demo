@@ -1,13 +1,12 @@
-
 module.exports = {
   configureWebpack: {
     output: {
-      libraryExport: 'default'
+      libraryExport: "default",
     },
     devServer: {
-      allowedHosts: 'all',
-    }
+      allowedHosts: [".csb.app"],
+    },
   },
   productionSourceMap: false,
-  css: { extract: false }
+  css: { extract: false },
 };
