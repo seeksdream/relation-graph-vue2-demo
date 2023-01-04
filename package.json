@@ -1,9 +1,6 @@
 {
   "name": "vue-2-example",
   "private": true,
-  "engines": {
-    "node": "^12"
-  },
   "scripts": {
     "serve": "vue-cli-service serve",
     "start": "vue-cli-service serve",
