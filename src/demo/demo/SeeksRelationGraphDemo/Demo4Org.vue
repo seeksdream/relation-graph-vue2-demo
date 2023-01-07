@@ -29,28 +29,28 @@ export default {
       this.g_loading = false;
       this.loadGraphJsonData({
         invs: [
-          { id: 'inv1', name: '北京龙信数据科技有限公司', desc: '40%' },
-          { id: 'inv2', name: '张军', desc: '30%' },
-          { id: 'inv3', name: '如花', desc: '10%' },
-          { id: 'inv4', name: '路人甲', desc: '10%' },
-          { id: 'inv5', name: '路人乙', desc: '10%' }
+          { id: 'inv1', text: '北京龙信数据科技有限公司', desc: '40%' },
+          { id: 'inv2', text: '张军', desc: '30%' },
+          { id: 'inv3', text: '如花', desc: '10%' },
+          { id: 'inv4', text: '路人甲', desc: '10%' },
+          { id: 'inv5', text: '路人乙', desc: '10%' }
         ],
         persons: [
-          { id: 'person1', name: '张军', desc: '董事长' },
-          { id: 'person2', name: '鲍涛', desc: '总经理' },
-          { id: 'person3', name: '路人甲', desc: '监事' },
-          { id: 'person4', name: '路人乙', desc: '董事' }
+          { id: 'person1', text: '张军', desc: '董事长' },
+          { id: 'person2', text: '鲍涛', desc: '总经理' },
+          { id: 'person3', text: '路人甲', desc: '监事' },
+          { id: 'person4', text: '路人乙', desc: '董事' }
         ],
         asInvs: [
-          { id: 'asinv1', name: '北京小橘科技有限公司', desc: '80%' },
-          { id: 'asinv2', name: '北京小蚂蚁科技有限公司', desc: '70%' },
-          { id: 'asinv3', name: '北京不知名科技有限公司', desc: '20%' }
+          { id: 'asinv1', text: '北京小橘科技有限公司', desc: '80%' },
+          { id: 'asinv2', text: '北京小蚂蚁科技有限公司', desc: '70%' },
+          { id: 'asinv3', text: '北京不知名科技有限公司', desc: '20%' }
         ],
         branchs: [
-          { id: 'branch1', name: '中数智汇（北京）科技股份有限公司', desc: '80%' },
-          { id: 'branch2', name: '中数智汇（天津）科技股份有限公司', desc: '70%' },
-          { id: 'branch4', name: '中数智汇（成都）科技股份有限公司', desc: '70%' },
-          { id: 'branch5', name: '中数智汇（武汉）科技股份有限公司', desc: '20%' }
+          { id: 'branch1', text: '中数智汇（北京）科技股份有限公司', desc: '80%' },
+          { id: 'branch2', text: '中数智汇（天津）科技股份有限公司', desc: '70%' },
+          { id: 'branch4', text: '中数智汇（成都）科技股份有限公司', desc: '70%' },
+          { id: 'branch5', text: '中数智汇（武汉）科技股份有限公司', desc: '20%' }
         ]
       });
     }, 1000);
