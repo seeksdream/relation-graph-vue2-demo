@@ -13,10 +13,10 @@
 
 <script>
 // 如果您没有在main.js文件中使用Vue.use(RelationGraph); 就需要使用下面这一行代码来引入relation-graph
-// import RelationGraph from 'relation-graph';
+import RelationGraph from 'relation-graph';
 export default {
   name: 'Demo',
-  components: { },
+  components: { RelationGraph },
   data() {
     return {
       isShowCodePanel: false,
