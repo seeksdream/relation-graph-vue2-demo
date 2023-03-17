@@ -28,7 +28,7 @@
 
 <script>
 // 如果您没有在main.js文件中使用Vue.use(RelationGraph); 就需要使用下面这一行代码来引入relation-graph
-// import RelationGraph from 'relation-graph';
+import RelationGraph from 'relation-graph';
 import Slot1 from '../options-tools/components/node-slot/slot1';
 import Slot2 from '../options-tools/components/node-slot/slot2';
 import Slot3 from '../options-tools/components/node-slot/slot3';
@@ -38,7 +38,7 @@ import Slot6 from '../options-tools/components/node-slot/slot6';
 
 export default {
   name: 'Demo',
-  components: { Slot1, Slot2, Slot3, Slot4, Slot5, Slot6 },
+  components: { RelationGraph, Slot1, Slot2, Slot3, Slot4, Slot5, Slot6 },
   data() {
     return {
       slotTeamplateId: '',
