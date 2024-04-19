@@ -10,7 +10,7 @@
     "@types/nprogress": "^0.2.0",
     "axios": "0.18.1",
     "core-js": "^3.29.1",
-    "relation-graph": "2.1.21"
+    "relation-graph": "2.1.42"
   },
   "devDependencies": {
     "sass": "^1.59.2",
