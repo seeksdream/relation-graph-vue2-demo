@@ -1198,10 +1198,10 @@ readdirp@~3.6.0:
   dependencies:
     picomatch "^2.2.1"
 
-relation-graph@2.1.21:
-  version "2.1.21"
-  resolved "https://registry.yarnpkg.com/relation-graph/-/relation-graph-2.1.21.tgz#529ba041830938dd5354e67ceef88ed46f868e1f"
-  integrity sha512-wzCIZMDuTzWyRa/Z4BqKr6OCOst/1wkLH19L1OQb/XFclrroxZykyW9996rbTFoh5Xo/2EQdUuj4sTmqs7ELZQ==
+relation-graph@2.2.10:
+  version "2.2.10"
+  resolved "https://registry.npmmirror.com/relation-graph/-/relation-graph-2.2.10.tgz#d8c1dd264c030e9058f93a9398d4353236c464d9"
+  integrity sha512-XO5XZGzOxt0JKaLjh9Fnh35aDsaDF/FUMx1cfRmJ6CAOQaiCFcwpCstKEPU7fQPPb1ZAr0PmXJvdKowRqCn9DA==
   dependencies:
     html2canvas "^1.4.1"
     screenfull "^5.1.0"
