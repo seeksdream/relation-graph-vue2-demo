@@ -1,103 +1,141 @@
 <template>
-  <div>
-    <div style="height: calc(100vh - 50px)">
-      <RelationGraph
-        ref="seeksRelationGraph"
-        :options="graphOptions"
-        :on-node-click="onNodeClick"
-        :on-line-click="onLineClick"
+  <div class="simple-page">
+    <div class="demo-toolbar">
+      <button class="btn" @click="active = active === '2' ? '1' : '2'">
+        切换布局: {{ active === '2' ? '纵向' : '横向' }}
+      </button>
+      <button class="btn" @click="backgroundColor = backgroundColor === '#f7fafc' ? '#ffffff' : '#f7fafc'">
+        切换背景
+      </button>
+    </div>
+    <div class="graph-container">
+      <TreeXMind
+        :current-tree-node="currentTreeNode"
+        :status-enum="statusEnum"
+        :background-color="backgroundColor"
+        :active="active"
+        :page="page"
+        :value="value"
+        :searching="searching"
+        :search-options="searchOptions"
+        :search-keyword="searchKeyword"
+        @update:value="value = $event"
+        @customBtn="handleCustomBtn"
+        @handleAdd="handleAdd"
+        @remoteSearch="handleRemoteSearch"
+        @select-change="handleSelectChange"
       />
     </div>
   </div>
 </template>
 
 <script>
-// 如果您没有在main.js文件中使用Vue.use(RelationGraph); 就需要使用下面这一行代码来引入relation-graph
-import RelationGraph from "relation-graph";
+import TreeXMind from './TreeXMind.vue';
+
 export default {
   name: "Demo",
-  components: { RelationGraph },
+  components: {
+    TreeXMind
+  },
   data() {
     return {
-      isShowCodePanel: false,
-      graphOptions: {
-        moveToCenterWhenRefresh: false,
-        zoomToFitWhenRefresh: false,
-        useAnimationWhenRefresh: true,
-        defaultFocusRootNode: true,
-        disableNodeClickEffect: false,
-        disableLineClickEffect: false,
-        backgrounImageNoRepeat: false,
-        isMoveByParentNode: false,
-        defaultExpandHolderPosition: "hide",
-        defaultNodeColor: "rgba(238, 178, 94, 1)",
-        checkedLineColor: "#FD8B37",
-        defaultNodeFontColor: "#ffffff",
-        defaultNodeBorderColor: "#90EE90",
-        defaultNodeBorderWidth: 0,
-        defaultLineColor: "#dddddd",
-        defaultLineWidth: 1,
-        defaultLineShape: 1,
-        defaultNodeShape: 0,
-        defaultShowLineLabel: true,
-        hideNodeContentByZoom: false,
-        defaultJunctionPoint: "border",
-        disableDragCanvas: false,
-        lineUseTextPath: false,
-        layout:{
-          label: "自动布局",
-          layoutName: "force",
-          layoutClassName: "seeks-layout-force",
-            layoutTimes: 9999999
-        },
-        isNeedShowAutoLayoutButton: true,
-        showSingleNode: true,
-        showNodeLabel: true,
-        showNodeShortLabel: true,
+      currentTreeNode: {
+          row: {
+              key: '',
+              pointCode: ''
+          }
       },
+      statusEnum: {
+        '01': '规划技术',
+        '02': '在研技术',
+        '03': '已有技术',
+        '05': '取消技术',
+        '06': '未研发技术'
+      },
+      backgroundColor: '#f7fafc',
+      active: '2',
+      page: {
+        btnsDom: [
+          { type: 'move', domApi: 'api=technical:move' },
+          { type: 'dialog-edit', domApi: 'api=technical:edit' },
+          { type: 'del', domApi: 'api=technical:delete' },
+          { type: 'copy', domApi: 'api=technical:copy' },
+          { type: 'add', domApi: 'api=technical:add' }
+        ]
+      },
+      value: '',
+      searching: false,
+      searchKeyword: '',
+      searchOptions: [],
+      searchPool: [
+        { value: 'node-1', label: '基础能力' },
+        { value: 'node-2', label: '数据治理' },
+        { value: 'node-3', label: '可视化' },
+        { value: 'node-4', label: '模型服务' },
+        { value: 'node-5', label: '平台工程' }
+      ]
     };
   },
   mounted() {
-    this.showSeeksGraph();
+    this.searchOptions = this.searchPool.slice(0, 3);
+      setTimeout(() => {
+
+          this.currentTreeNode.row.key = 'mock-domain';
+    }, 2000)
   },
   methods: {
-    showSeeksGraph() {
-      const __graph_json_data = {
-        rootId: "N3",
-        nodes: [
-          { id: "N4", text: "Node 4" },
-          { id: "N5", text: "Node 5" },
-          { id: "N6", text: "Node 6" },
-          { id: "N7", text: "Node 7" },
-          { id: "N3", text: "Node 三" },
-          { id: "N9", text: "152****3393" },
-        ],
-        lines: [
-          { from: "N3", to: "N9", text: "Text 1" },
-          { from: "N3", to: "N4", text: "Text 2" },
-          { from: "N3", to: "N5", text: "Text 3" },
-          { from: "N3", to: "N6", text: "Text 4" },
-          { from: "N3", to: "N7", text: "Text 5" },
-          { from: "N9", to: "N4", text: "Text 6" }
-        ],
-      };
-      this.$refs.seeksRelationGraph.setJsonData(
-        __graph_json_data,
-        (graphInstance) => {
-          // 这些写上当图谱初始化完成后需要执行的代码
-        }
-      );
+    handleCustomBtn(payload) {
+      console.log('[TreeXMind customBtn]', payload);
     },
-    onNodeClick(nodeObject, $event) {
-      console.log("onNodeClick:", nodeObject);
+    handleAdd(payload) {
+      console.log('[TreeXMind handleAdd]', payload);
     },
-    onLineClick(lineObject, $event) {
-      console.log("onLineClick:", lineObject);
+    handleRemoteSearch(query) {
+      this.searching = true;
+      this.searchKeyword = query || '';
+      const keyword = this.searchKeyword.trim();
+      if (!keyword) {
+        this.searchOptions = this.searchPool.slice(0, 3);
+        this.searching = false;
+        return;
+      }
+      this.searchOptions = this.searchPool.filter((item) => item.label.includes(keyword));
+      this.searching = false;
     },
-  },
+    handleSelectChange(value) {
+      console.log('[TreeXMind select-change]', value);
+    }
+  }
 };
 </script>
 
-<style lang="scss"></style>
+<style scoped>
+.simple-page {
+  height: 100vh;
+  background: #eef2f7;
+}
 
-<style lang="scss" scoped></style>
+.demo-toolbar {
+  height: 50px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border-bottom: 1px solid #d9e1ec;
+  background: #fff;
+}
+
+.btn {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid #c7d2e2;
+  background: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.graph-container {
+  height: calc(100vh - 50px);
+  padding: 8px;
+}
+</style>

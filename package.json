@@ -6,11 +6,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@relation-graph/vue2": "3.0.11",
     "@types/node": "^20.6.0",
     "@types/nprogress": "^0.2.0",
     "axios": "0.18.1",
     "core-js": "^3.29.1",
-    "relation-graph": "2.2.10"
+    "element-ui": "^2.15.14",
+    "jspdf": "^4.2.0",
+    "lodash": "^4.17.23",
+    "relation-graph-vue2": "2.2.11"
   },
   "devDependencies": {
     "sass": "^1.59.2",
