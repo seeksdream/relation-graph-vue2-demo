@@ -106,10 +106,11 @@
 <script>
 import _ from 'lodash';
 import { jsPDF } from 'jspdf';
-import { getPointClassificationTree, searchPoints } from '@/api/technical-shelves';
+import { getPointClassificationTree } from './technical-shelves';
 import { findProductCategory } from '@/utils/categoryUtils';
 import { CookieUtils } from '@/utils/cookieUtil';
 import RelationGraph from 'relation-graph-vue2';
+import LegacyMixedTreeLayout, { MIX_LAYOUT_DIRECTION } from './LegacyMixedTreeLayout';
 
 export default {
   name: 'TreeXMind',
@@ -160,48 +161,9 @@ export default {
         allowShowMiniToolBar: true,
         allowSwitchLineShape: true,
         allowSwitchJunctionPoint: true,
-        defaultExpandHolderPosition: 'right',
-        useAnimationWhenRefresh: true,
-        defaultNodeBorderWidth: 1,
-        defaultNodeShape: 1,
-        defaultJunctionPoint: 'lr',
-        lineUseTextPath: true,
-        graphOffset_y: '-50',
-        canvasZoom: 60,
-        moveToCenterWhenRefresh: true,
-        zoomToFitWhenRefresh: true,
-        backgroundColor: '',
-        defaultLineShape: 2,
-        defaultLineMarker: {
-          markerWidth: 12,
-          markerHeight: 12,
-          refX: 6,
-          refY: 6,
-          data: 'M2,2 L10,6 L2,10 L6,6 L2,2'
-        },
-        layouts: [
-          {
-            label: '中心',
-            layoutName: 'tree',
-            centerOffset_x: 0,
-            centerOffset_y: 0,
-            distance_coefficient: 1,
-            layoutDirection: 'h',
-            from: 'left',
-            levelDistance: '',
-            max_per_width: 300,
-            min_per_height: 70
-          }
-        ]
-      },
-      graphOptions: {
-        backgroundImage: '',
-        backgroundImageNoRepeat: true,
-        allowShowMiniToolBar: true,
         defaultExpandHolderPosition: 'bottom',
         useAnimationWhenRefresh: true,
         defaultNodeBorderWidth: 1,
-        defaultLineShape: 2,
         defaultNodeShape: 1,
         defaultJunctionPoint: 'tb',
         lineUseTextPath: true,
@@ -209,6 +171,8 @@ export default {
         canvasZoom: 60,
         moveToCenterWhenRefresh: true,
         zoomToFitWhenRefresh: true,
+        backgroundColor: '',
+        defaultLineShape: 44,
         defaultLineMarker: {
           markerWidth: 12,
           markerHeight: 12,
@@ -216,21 +180,39 @@ export default {
           refY: 6,
           data: 'M2,2 L10,6 L2,10 L6,6 L2,2'
         },
-        layouts: [
-          {
-            label: '中心',
-            layoutName: 'tree',
-            centerOffset_x: 0,
-            centerOffset_y: 0,
-            distance_coefficient: 1,
-            layoutDirection: 'v',
-            from: 'top',
-            levelDistance: '',
-            min_per_width: 120,
-            max_per_width: 140,
-            min_per_height: 200
-          }
-        ],
+        layout: {
+          layoutName: 'tree',
+            from: 'left',
+            levelDistance: [400, 400, 400, 400]
+        }
+      },
+      graphOptions: {
+        backgroundImage: '',
+        backgroundImageNoRepeat: true,
+        allowShowMiniToolBar: true,
+        allowSwitchLineShape: true,
+        allowSwitchJunctionPoint: true,
+        defaultExpandHolderPosition: 'right',
+        useAnimationWhenRefresh: true,
+        defaultNodeBorderWidth: 1,
+        defaultLineShape: 44,
+        defaultNodeShape: 1,
+        defaultJunctionPoint: 'lr',
+        lineUseTextPath: true,
+        graphOffset_y: '-50',
+        canvasZoom: 60,
+        moveToCenterWhenRefresh: true,
+        zoomToFitWhenRefresh: true,
+        defaultLineMarker: {
+          markerWidth: 12,
+          markerHeight: 12,
+          refX: 6,
+          refY: 6,
+          data: 'M2,2 L10,6 L2,10 L6,6 L2,2'
+        },
+        layout: {
+          layoutName: 'fixed'
+        },
         backgroundColor: ''
       },
       jsonData: {
@@ -279,9 +261,7 @@ export default {
   watch: {
     currentTreeNode: {
       handler(val) {
-          console.error('currentTreeNode', val)
-        if (val) {
-            console.error('currentTreeNode2')
+        if (val && val.row && (val.row.key || val.row.pointCode)) {
           this.getList(val)
         }
       },
@@ -292,29 +272,22 @@ export default {
     backgroundColor: {
       async handler(val) {
         await this.$nextTick()
-        if (this.active === '2') {
-          this.graphOptions.backgroundColor = val
-          this.$refs.graphRef && this.$refs.graphRef.setOptions(this.graphOptions);
-        } else {
-          this.graphOptionsLr.backgroundColor = val
-          this.$refs.graphRef && this.$refs.graphRef.setOptions(this.graphOptionsLr);
+        const graphInstance = this.$refs.graphRef && this.$refs.graphRef.getInstance()
+        if (!graphInstance) {
+          return
         }
-        this.$refs.graphRef && this.$refs.graphRef.setJsonData(this.jsonData)
+        await graphInstance.setOptions(this.getActiveGraphOptions(), true)
       },
       immediate: true
     },
     // 修改结构
     active: {
-      async handler(val) {
+      async handler() {
         await this.$nextTick()
-        if (val === '2') { // 纵向
-          this.graphOptions.backgroundColor = this.backgroundColor
-          this.$refs.graphRef && this.$refs.graphRef.setOptions(this.graphOptions);
-        } else { // 横向
-          this.graphOptionsLr.backgroundColor = this.backgroundColor
-          this.$refs.graphRef && this.$refs.graphRef.setOptions(this.graphOptionsLr);
+        if (!this.$refs.graphRef || this.jsonData.nodes.length === 0) {
+          return
         }
-        this.$refs.graphRef && this.$refs.graphRef.setJsonData(this.jsonData)
+        await this.renderCurrentGraph()
       },
       immediate: true
     }
@@ -322,6 +295,10 @@ export default {
   mounted() {
     this.$nextTick(() => {
       setTimeout(() => {
+        if (this.jsonData.nodes.length > 0) {
+          this.renderCurrentGraph()
+          return
+        }
         this.showGraph()
       })
     })
@@ -334,7 +311,33 @@ export default {
       const domApi = btn && btn.domApi && btn.domApi.split('=')[1]
       return domApi && Object.keys(this.$store.state.user.btnPermission).includes(domApi)
     },
-    showGraph() {
+    getActiveGraphOptions() {
+      const activeOptions = this.active === '2' ? this.graphOptions : this.graphOptionsLr
+      const nextOptions = _.cloneDeep(activeOptions)
+      nextOptions.backgroundColor = this.backgroundColor
+      return nextOptions
+    },
+    getCurrentLayoutDirection() {
+      return this.active === '2' ? MIX_LAYOUT_DIRECTION.VERTICAL : MIX_LAYOUT_DIRECTION.HORIZONTAL
+    },
+    async renderCurrentGraph() {
+      const graphRef = this.$refs.graphRef
+      if (!graphRef) {
+        return
+      }
+      const graphInstance = graphRef.getInstance()
+      await graphInstance.setOptions(this.getActiveGraphOptions())
+      if (this.jsonData.nodes.length === 0) {
+        return
+      }
+      await graphRef.setJsonData(_.cloneDeep(this.jsonData))
+      const mixLayout = new LegacyMixedTreeLayout(graphInstance)
+      await mixLayout.apply(this.jsonData, this.getCurrentLayoutDirection())
+        await graphInstance.setZoom(100);
+        await graphInstance.moveToCenter()
+        await graphInstance.zoomToFit()
+    },
+    async showGraph() {
       this.jsonData = {
         rootId: '1',
         nodes: [
@@ -396,8 +399,7 @@ export default {
           }
         ]
       }
-      // 以上数据中的node和link可以参考"Node节点"和"Link关系"中的参数进行配置
-      this.$refs.graphRef.setJsonData(this.jsonData)
+      await this.renderCurrentGraph()
     },
     onNodeClick(nodeObject, $event) {
       if (!this.currentTreeNode) return
@@ -588,44 +590,16 @@ export default {
           cid: obj.row.key,
           pointCode: obj.row.pointCode
         })
-        this.jsonData.rootId = treeData[0].id
-        const styleClass = (type) => {
-          switch (type) {
-            case '03': // 已有技术
-              return 'existing'
-            case '02': // 在研技术
-              return 'under-research'
-            case '01': // 规划技术
-              return 'planning'
-            case '05': // 取消技术
-              return 'cancel'
-            case '06': // 未研发技术
-              return 'undeveloped-technology'
+        if (!treeData || treeData.length === 0) {
+          this.jsonData = {
+            rootId: '',
+            nodes: [],
+            lines: []
           }
+          return
         }
-        this.jsonData.nodes = treeData.map(item => {
-          return {
-            ...item,
-            styleClass: ['技术货架', '产品大类', '技术领域'].includes(item.data.description) ? 'technical' : styleClass(item.data.type)
-          }
-        })
-        this.jsonData.lines = treeData.reduce((acc, cur) => {
-          if (cur.data.pid) {
-            acc.push({
-              from: cur.data.pid,
-              to: cur.data.cid,
-              showEndArrow: false,
-              color: '#666'
-            })
-          }
-          return acc
-        }, [])
-        this.$refs.graphRef.setJsonData(this.jsonData, (graphInstance) => {
-          // Called when the relation-graph is completed
-          // this.graphOptions.graphOffset_y = '-80'
-          this.$refs.graphRef.onGraphResize()
-          this.loading = false
-        })
+        this.jsonData = treeData
+        await this.renderCurrentGraph()
       } catch (e) {
         console.warn(e)
       } finally {
@@ -655,8 +629,11 @@ export default {
   .c-my-rg-node {
     border-radius: 4px;
     line-height: 28px;
-    min-width: 80px;
-    max-width: 140px;
+      height: 80px;
+      width: 200px;
+      display: flex;
+      place-items: center;
+      justify-content: center;
     font-size: 14px;
     border: 1px solid #868181;
     color: #333;

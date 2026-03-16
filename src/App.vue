@@ -6,7 +6,8 @@
 
 <script>
 // 所有的demo都在../demo文件中，你想要使用哪个，像上面一样引入即可
-import CurrentDemo from './demo/Simple'; // 简单示例
+// import CurrentDemo from './demo/SimpleV2'; // 简单示例
+import CurrentDemo from './demo/SimpleV3'; // 简单示例
 export default {
   name: "App",
   components: { CurrentDemo },

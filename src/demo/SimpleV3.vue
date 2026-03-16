@@ -9,32 +9,37 @@
       </button>
     </div>
     <div class="graph-container">
-      <TreeXMind
-        :current-tree-node="currentTreeNode"
-        :status-enum="statusEnum"
-        :background-color="backgroundColor"
-        :active="active"
-        :page="page"
-        :value="value"
-        :searching="searching"
-        :search-options="searchOptions"
-        :search-keyword="searchKeyword"
-        @update:value="value = $event"
-        @customBtn="handleCustomBtn"
-        @handleAdd="handleAdd"
-        @remoteSearch="handleRemoteSearch"
-        @select-change="handleSelectChange"
-      />
+        <RGProvider>
+          <TreeXMind
+            :current-tree-node="currentTreeNode"
+            :status-enum="statusEnum"
+            :background-color="backgroundColor"
+            :active="active"
+            :page="page"
+            :value="value"
+            :searching="searching"
+            :search-options="searchOptions"
+            :search-keyword="searchKeyword"
+            @update:value="value = $event"
+            @customBtn="handleCustomBtn"
+            @handleAdd="handleAdd"
+            @remoteSearch="handleRemoteSearch"
+            @select-change="handleSelectChange"
+          />
+        </RGProvider>
     </div>
   </div>
 </template>
 
 <script>
-import TreeXMind from './TreeXMind.vue';
+
+import { RGProvider } from '@relation-graph/vue2';
+import TreeXMind from './case20260316-V3.x/TreeXMind.vue';
 
 export default {
   name: "Demo",
   components: {
+      RGProvider,
     TreeXMind
   },
   data() {
@@ -81,7 +86,7 @@ export default {
       setTimeout(() => {
 
           this.currentTreeNode.row.key = 'mock-domain';
-    }, 2000)
+    }, 500)
   },
   methods: {
     handleCustomBtn(payload) {
