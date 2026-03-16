@@ -1,4 +1,4 @@
-const myTreeJsonData = {
+export const myTreeJsonData = {
   id: 'tree-root',
   text: 'All Departments',
   children: [
