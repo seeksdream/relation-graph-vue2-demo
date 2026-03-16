@@ -14,7 +14,7 @@
     "element-ui": "^2.15.14",
     "jspdf": "^4.2.0",
     "lodash": "^4.17.23",
-    "relation-graph-vue2": "2.2.11"
+    "relation-graph-vue2": "^2.2.11"
   },
   "devDependencies": {
     "sass": "^1.59.2",

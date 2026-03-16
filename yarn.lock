@@ -1356,9 +1356,9 @@ regenerator-runtime@^0.13.7:
   resolved "https://registry.npmjs.org/regenerator-runtime/-/regenerator-runtime-0.13.11.tgz"
   integrity sha512-kY1AZVr2Ra+t+piVaJ4gxaFaReZVH40AKNo7UCX6W+dEwBo/2oZJzqfuN1qLq1oL45o56cPaTXELwrTh8Fpggg==
 
-relation-graph-vue2@2.2.11:
+relation-graph-vue2@^2.2.11:
   version "2.2.11"
-  resolved "https://registry.npmmirror.com/relation-graph-vue2/-/relation-graph-vue2-2.2.11.tgz"
+  resolved "https://registry.npmjs.org/relation-graph-vue2/-/relation-graph-vue2-2.2.11.tgz"
   integrity sha512-jOWWnc3YD/ani8+2jod1hZTSeQhUZwC3ETQQ5GjeNbvYvo1HvObPr6q+vlAaY6ueiIiBVHOj6kuREDej0XpHVQ==
   dependencies:
     html2canvas "^1.4.1"
