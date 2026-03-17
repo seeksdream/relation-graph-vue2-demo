@@ -45,7 +45,7 @@ export default class MixedTreeLayout {
         layoutName: 'folder',
         from: 'left',
         simpleTree: true,
-        treeNodeGapH: 150,
+        treeNodeGapH: 10,
         treeNodeGapV: 24,
         layoutExpansionDirection: 'end'
       });
@@ -112,7 +112,7 @@ export default class MixedTreeLayout {
       const isRootLine = line.from === rootId && levelOneSet.has(line.to);
       line.lineShape = LINE_SHAPE_ORTHOGONAL;
       line.showEndArrow = false;
-      line.fromJunctionPoint = isRootLine ? 'bottom' : 'right';
+      line.fromJunctionPoint = isRootLine ? 'bottom' : 'bottom';
       line.toJunctionPoint = isRootLine ? 'top' : 'left';
       if (!line.color) {
         line.color = '#666';
