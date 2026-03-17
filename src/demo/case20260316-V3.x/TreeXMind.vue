@@ -3,8 +3,10 @@
     <RelationGraph
       ref="graphRef"
       :options="initialGraphOptions"
-      :on-node-click="onNodeClick"
-      :on-line-click="onLineClick"
+      @onNodeClick="onNodeClick"
+      @onLineClick="onLineClick"
+      @onNodeExpand="onNodeExpand"
+      @onNodeCollapse="onNodeCollapse"
     >
       <template #node="{node}">
         <div
@@ -103,11 +105,12 @@
 <script>
 import _ from 'lodash';
 import { jsPDF } from 'jspdf';
-import { RelationGraph, graphStoreMixin } from '@relation-graph/vue2';
+import {RelationGraph, graphStoreMixin, RGJunctionPoint} from '@relation-graph/vue2';
 import { myTreeJsonData } from './technical-shelves';
 import { findProductCategory } from '@/utils/categoryUtils';
 import { CookieUtils } from '@/utils/cookieUtil';
 import MixedTreeLayout from './MixedTreeLayout';
+import {blobToBase64, domToImageByModernScreenshot} from "@/demo/case20260316-V3.x/domToImageByModernScreenshot";
 
 const LINE_SHAPE_ORTHOGONAL = 44;
 const LEAF_STATUS_TYPES = ['01', '02', '03', '06'];
@@ -164,9 +167,9 @@ export default {
         allowShowMiniToolBar: true,
         allowSwitchLineShape: true,
         allowSwitchJunctionPoint: true,
-        defaultExpandHolderPosition: 'bottom',
+        defaultExpandHolderPosition: 'right',
         defaultLineShape: LINE_SHAPE_ORTHOGONAL,
-        defaultNodeBorderWidth: 1,
+        defaultNodeBorderWidth: 0,
         defaultNodeWidth: 220,
         defaultNodeHeight: 72,
         useAnimationWhenRefresh: true,
@@ -185,7 +188,7 @@ export default {
         defaultExpandHolderPosition: 'right',
         defaultLineShape: LINE_SHAPE_ORTHOGONAL,
         defaultJunctionPoint: 'lr',
-        defaultNodeBorderWidth: 1,
+        defaultNodeBorderWidth: 0,
         defaultNodeWidth: 220,
         defaultNodeHeight: 72,
         useAnimationWhenRefresh: true,
@@ -301,32 +304,34 @@ export default {
       }
       this.graphInstance.setOptions(this.getActiveGraphOptions());
       await this.graphInstance.setJsonData(_.cloneDeep(this.jsonData));
-      if (this.active === '2') {
-        const mixLayout = new MixedTreeLayout(this.graphInstance);
-        await mixLayout.apply(this.jsonData);
-      } else {
-        this.graphInstance.setRootNodeId(this.jsonData.rootId);
-        await this.graphInstance.doLayout(this.jsonData.rootId);
-        this.applyHorizontalLineStyles();
-      }
+      await this.layoutMyGraphData();
       this.graphInstance.setZoom(100);
       this.graphInstance.moveToCenter();
-      await this.graphInstance.zoomToFit();
+      this.graphInstance.zoomToFit();
     },
+      async layoutMyGraphData() {
+          if (this.active === '2') {
+              const mixLayout = new MixedTreeLayout(this.graphInstance);
+              await mixLayout.apply(this.jsonData);
+          } else {
+              this.graphInstance.setRootNodeId(this.jsonData.rootId);
+              await this.graphInstance.doLayout(this.jsonData.rootId);
+              this.applyHorizontalLineStyles();
+          }
+      },
     applyHorizontalLineStyles() {
       if (!this.graphInstance) {
         return;
       }
       this.graphInstance.getLines().forEach((line) => {
-        line.lineShape = LINE_SHAPE_ORTHOGONAL;
-        line.fromJunctionPoint = 'right';
-        line.toJunctionPoint = 'left';
-        line.showEndArrow = false;
-        if (!line.color) {
-          line.color = '#666';
-        }
+          this.graphInstance.updateLine(line, {
+              lineShape: LINE_SHAPE_ORTHOGONAL,
+              fromJunctionPoint: RGJunctionPoint.right,
+              toJunctionPoint: RGJunctionPoint.left,
+              showEndArrow: false,
+              color: line.color || '#666'
+          });
       });
-      this.graphInstance.dataUpdated();
     },
     onNodeClick(nodeObject) {
       if (!nodeObject || !nodeObject.data) {
@@ -341,6 +346,25 @@ export default {
     onLineClick(lineObject) {
       console.log('onLineClick:', lineObject);
     },
+      async onNodeExpand(node) {
+        console.log('onNodeExpand:', node);
+          await this.layoutMyGraphData();
+
+      },
+      async onNodeCollapse(node) {
+        console.log('onNodeCollapse:', node);
+          await this.layoutMyGraphData();
+      },
+      async generateImageBase64() {
+          const canvasDom = await this.graphInstance.prepareForImageGeneration();
+          const imageBlob = await domToImageByModernScreenshot(canvasDom, {
+              backgroundColor: '#ffffff'
+          });
+          await this.graphInstance.restoreAfterImageGeneration();
+          if (imageBlob) {
+              return await blobToBase64(imageBlob);
+          }
+      },
     async download() {
       if (!this.graphInstance) {
         return;
@@ -351,7 +375,7 @@ export default {
         const targetNode = this.graphInstance.getNodeById(item);
         return targetNode ? this.graphInstance.expandNode(targetNode) : Promise.resolve();
       }));
-      this.imageBase64 = await this.graphInstance.getImageBase64();
+      this.imageBase64 = await this.generateImageBase64();
 
       const img = new Image();
       img.src = this.imageBase64;

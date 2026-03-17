@@ -7,10 +7,14 @@
       <button class="btn" @click="backgroundColor = backgroundColor === '#f7fafc' ? '#ffffff' : '#f7fafc'">
         切换背景
       </button>
+      <button class="btn" @click="downloadGraph">
+        下载
+      </button>
     </div>
     <div class="graph-container">
         <RGProvider>
           <TreeXMind
+                  ref="treeXMindRef"
             :current-tree-node="currentTreeNode"
             :status-enum="statusEnum"
             :background-color="backgroundColor"
@@ -109,11 +113,22 @@ export default {
     },
     handleSelectChange(value) {
       console.log('[TreeXMind select-change]', value);
-    }
+    },
+  async downloadGraph() {
+      console.log('[TreeXMind downloadGraph]');
+      this.$refs.treeXMindRef.download();
+    },
   }
 };
 </script>
 
+<style>
+html,body{
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+}
+</style>
 <style scoped>
 .simple-page {
   height: 100vh;
@@ -141,6 +156,6 @@ export default {
 
 .graph-container {
   height: calc(100vh - 50px);
-  padding: 8px;
+  padding: 0px;
 }
 </style>

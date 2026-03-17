@@ -13,6 +13,7 @@
     "core-js": "^3.29.1",
     "element-ui": "^2.15.14",
     "jspdf": "^4.2.0",
+    "modern-screenshot": "^4.6.7",
     "lodash": "^4.17.23",
     "relation-graph-vue2": "^2.2.11"
   },

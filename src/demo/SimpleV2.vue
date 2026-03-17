@@ -109,6 +109,13 @@ export default {
 };
 </script>
 
+<style>
+html,body{
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+}
+</style>
 <style scoped>
 .simple-page {
   height: 100vh;
