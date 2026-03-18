@@ -53,7 +53,7 @@ export default {
         '06': '未研发技术'
       },
       backgroundColor: '#f7fafc',
-      active: '2',
+      active: '1',
       page: {
         btnsDom: [
           { type: 'move', domApi: 'api=technical:move' },

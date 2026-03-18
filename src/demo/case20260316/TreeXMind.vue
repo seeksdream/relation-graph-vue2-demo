@@ -111,6 +111,7 @@ import { findProductCategory } from '@/utils/categoryUtils';
 import { CookieUtils } from '@/utils/cookieUtil';
 import RelationGraph from 'relation-graph-vue2';
 import LegacyMixedTreeLayout, { MIX_LAYOUT_DIRECTION } from './LegacyMixedTreeLayout';
+import {getSearchResult} from "@/demo/case20260316/searchData";
 
 export default {
   name: 'TreeXMind',
@@ -330,9 +331,11 @@ export default {
       if (this.jsonData.nodes.length === 0) {
         return
       }
-      await graphRef.setJsonData(_.cloneDeep(this.jsonData))
+      const searchedData = _.cloneDeep(await getSearchResult());
+      await graphRef.setJsonData(searchedData)
+      // await graphRef.setJsonData(_.cloneDeep(this.jsonData))
       const mixLayout = new LegacyMixedTreeLayout(graphInstance)
-      await mixLayout.apply(this.jsonData, this.getCurrentLayoutDirection())
+      await mixLayout.apply(searchedData, this.getCurrentLayoutDirection())
         await graphInstance.setZoom(100);
         await graphInstance.moveToCenter()
         await graphInstance.zoomToFit()
