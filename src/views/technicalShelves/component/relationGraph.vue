@@ -1,7 +1,6 @@
 <template>
   <div ref="myPage" v-loading="loading" class="relation-graph" @click="handleClick">
     <RelationGraph
-      ref="graphRef"
       :options="initialGraphOptions"
       @onNodeClick="onNodeClick"
       @onLineClick="onLineClick"
@@ -21,8 +20,8 @@
         </div>
       </template>
       <template #view>
-        <div v-if="graphInstance" class="fullscreen-search">
-          <div v-if="graphInstance.options.fullscreen" class="search-select-wrapper">
+        <div v-if="currentGraphOptions && currentGraphOptions.fullscreen" class="fullscreen-search">
+          <div class="search-select-wrapper">
             <el-select
               v-model="currentSearchValue"
               size="small"
@@ -105,14 +104,13 @@
 <script>
 import _ from 'lodash';
 import { jsPDF } from 'jspdf';
-import {RelationGraph, graphStoreMixin, RGJunctionPoint} from '@relation-graph/vue2';
-import { myTreeJsonData } from './technical-shelves';
+import { RelationGraph, graphStoreMixin, RGJunctionPoint, RGLineShape } from '@relation-graph/vue2';
 import { findProductCategory } from '@/utils/categoryUtils';
 import { CookieUtils } from '@/utils/cookieUtil';
 import MixedTreeLayout from './MixedTreeLayout';
-import {blobToBase64, domToImageByModernScreenshot} from "@/demo/case20260316-V3.x/domToImageByModernScreenshot";
+import { blobToBase64, domToImageByModernScreenshot } from './domToImageByModernScreenshot';
+import { fetchTreeJsonData } from './data';
 
-const LINE_SHAPE_ORTHOGONAL = 44;
 const LEAF_STATUS_TYPES = ['01', '02', '03', '06'];
 
 export default {
@@ -168,13 +166,11 @@ export default {
         allowSwitchLineShape: true,
         allowSwitchJunctionPoint: true,
         defaultExpandHolderPosition: 'right',
-        defaultLineShape: LINE_SHAPE_ORTHOGONAL,
+        defaultLineShape: RGLineShape.StandardOrthogonal,
         defaultNodeBorderWidth: 0,
         defaultNodeWidth: 220,
         defaultNodeHeight: 72,
-        useAnimationWhenRefresh: true,
-        moveToCenterWhenRefresh: true,
-        zoomToFitWhenRefresh: true,
+          defaultNodeColor: 'transparent',
         layout: {
           layoutName: 'fixed'
         }
@@ -186,14 +182,12 @@ export default {
         allowSwitchLineShape: true,
         allowSwitchJunctionPoint: true,
         defaultExpandHolderPosition: 'right',
-        defaultLineShape: LINE_SHAPE_ORTHOGONAL,
+        defaultLineShape: RGLineShape.StandardOrthogonal,
         defaultJunctionPoint: 'lr',
         defaultNodeBorderWidth: 0,
+          defaultNodeColor: 'transparent',
         defaultNodeWidth: 220,
         defaultNodeHeight: 72,
-        useAnimationWhenRefresh: true,
-        moveToCenterWhenRefresh: true,
-        zoomToFitWhenRefresh: true,
         layout: {
           layoutName: 'tree',
           from: 'left',
@@ -221,6 +215,9 @@ export default {
   computed: {
     initialGraphOptions() {
       return this.getActiveGraphOptions();
+    },
+    currentGraphOptions() {
+      return this.graphStore.options;
     },
     isAdmin() {
       return CookieUtils.getCookie('current-role') === 'ROLE_ADMIN';
@@ -285,8 +282,14 @@ export default {
         return false;
       }
       const btn = btnsDom.find(item => item.type === type);
-      const domApi = btn && btn.domApi && btn.domApi.split('=')[1];
+      if (!btn || !btn.domApi) {
+        return false;
+      }
+      const domApi = btn.domApi.split('=')[1];
       const btnPermission = this.$store && this.$store.state && this.$store.state.user ? this.$store.state.user.btnPermission : {};
+      if (!btnPermission || Object.keys(btnPermission).length === 0) {
+        return true;
+      }
       return !!(domApi && Object.prototype.hasOwnProperty.call(btnPermission, domApi));
     },
     isDomainNode(node) {
@@ -303,34 +306,35 @@ export default {
         return;
       }
       this.graphInstance.setOptions(this.getActiveGraphOptions());
-      await this.graphInstance.setJsonData(_.cloneDeep(this.jsonData));
+      const currentJsonData = _.cloneDeep(this.jsonData);
+        this.graphInstance.clearGraph();
+      this.graphInstance.addNodes(currentJsonData.nodes);
+      this.graphInstance.addLines(currentJsonData.lines);
+      if (currentJsonData.rootId) {
+          this.graphInstance.setRootNodeId(currentJsonData.rootId);
+      }
       await this.layoutMyGraphData();
-      this.graphInstance.setZoom(100);
       this.graphInstance.moveToCenter();
       this.graphInstance.zoomToFit();
     },
-      async layoutMyGraphData() {
-          if (this.active === '2') {
-              const mixLayout = new MixedTreeLayout(this.graphInstance);
-              await mixLayout.apply(this.jsonData);
-          } else {
-              this.graphInstance.setRootNodeId(this.jsonData.rootId);
-              await this.graphInstance.doLayout(this.jsonData.rootId);
-              this.applyHorizontalLineStyles();
-          }
-      },
-    applyHorizontalLineStyles() {
-      if (!this.graphInstance) {
-        return;
+    async layoutMyGraphData() {
+      if (this.active === '2') {
+        const mixLayout = new MixedTreeLayout(this.graphInstance);
+        await mixLayout.apply();
+      } else {
+        await this.graphInstance.doLayout();
+        this.applyHorizontalLineStyles();
       }
+    },
+    applyHorizontalLineStyles() {
       this.graphInstance.getLines().forEach((line) => {
-          this.graphInstance.updateLine(line, {
-              lineShape: LINE_SHAPE_ORTHOGONAL,
-              fromJunctionPoint: RGJunctionPoint.right,
-              toJunctionPoint: RGJunctionPoint.left,
-              showEndArrow: false,
-              color: line.color || '#666'
-          });
+        this.graphInstance.updateLine(line, {
+          lineShape: RGLineShape.StandardOrthogonal,
+          fromJunctionPoint: RGJunctionPoint.right,
+          toJunctionPoint: RGJunctionPoint.left,
+          showEndArrow: false,
+          color: line.color || '#666'
+        });
       });
     },
     onNodeClick(nodeObject) {
@@ -346,25 +350,27 @@ export default {
     onLineClick(lineObject) {
       console.log('onLineClick:', lineObject);
     },
-      async onNodeExpand(node) {
-        console.log('onNodeExpand:', node);
-          await this.layoutMyGraphData();
-
-      },
-      async onNodeCollapse(node) {
-        console.log('onNodeCollapse:', node);
-          await this.layoutMyGraphData();
-      },
-      async generateImageBase64() {
-          const canvasDom = await this.graphInstance.prepareForImageGeneration();
-          const imageBlob = await domToImageByModernScreenshot(canvasDom, {
-              backgroundColor: '#ffffff'
-          });
-          await this.graphInstance.restoreAfterImageGeneration();
-          if (imageBlob) {
-              return await blobToBase64(imageBlob);
-          }
-      },
+    async onNodeExpand() {
+        // 展开收起会引起节点的可见性发生变化，在布局（为节点分配位置）之前这里需要现形的调用updateNodesVisibleProperty方法来更新节点的可见性信息
+        this.graphInstance.updateNodesVisibleProperty();
+        this.layoutMyGraphData();
+    },
+    async onNodeCollapse() {
+        // 展开收起会引起节点的可见性发生变化，在布局（为节点分配位置）之前这里需要现形的调用updateNodesVisibleProperty方法来更新节点的可见性信息
+        this.graphInstance.updateNodesVisibleProperty();
+        this.layoutMyGraphData();
+    },
+    async generateImageBase64() {
+      const canvasDom = await this.graphInstance.prepareForImageGeneration();
+      const imageBlob = await domToImageByModernScreenshot(canvasDom, {
+        backgroundColor: '#ffffff'
+      });
+      await this.graphInstance.restoreAfterImageGeneration();
+      if (imageBlob) {
+        return await blobToBase64(imageBlob);
+      }
+      return '';
+    },
     async download() {
       if (!this.graphInstance) {
         return;
@@ -376,6 +382,9 @@ export default {
         return targetNode ? this.graphInstance.expandNode(targetNode) : Promise.resolve();
       }));
       this.imageBase64 = await this.generateImageBase64();
+      if (!this.imageBase64) {
+        return;
+      }
 
       const img = new Image();
       img.src = this.imageBase64;
@@ -536,7 +545,7 @@ export default {
         this.isShowNodeTipsPanel = false;
         this.isShowNodeMenuPanel = false;
         this.isShowNodeMenuPanelTechnical = false;
-        const targetTree = this.resolveTreeRoot(obj);
+        const targetTree = await this.resolveTreeRoot(obj);
         this.jsonData = this.transformTreeToGraphData(targetTree);
         await this.renderCurrentGraph();
       } catch (e) {
@@ -545,13 +554,14 @@ export default {
         this.loading = false;
       }
     },
-    resolveTreeRoot(obj) {
+    async resolveTreeRoot(obj) {
+      const treeRoot = await fetchTreeJsonData(obj);
       const targetId = obj && obj.row ? obj.row.key || obj.row.pointCode : '';
       if (!targetId) {
-        return _.cloneDeep(myTreeJsonData);
+        return _.cloneDeep(treeRoot);
       }
-      const targetTree = this.findTreeNodeById(myTreeJsonData, targetId);
-      return _.cloneDeep(targetTree || myTreeJsonData);
+      const targetTree = this.findTreeNodeById(treeRoot, targetId);
+      return _.cloneDeep(targetTree || treeRoot);
     },
     findTreeNodeById(treeNode, targetId) {
       if (!treeNode) {
@@ -572,39 +582,41 @@ export default {
     transformTreeToGraphData(rootTree) {
       const nodes = [];
       const lines = [];
-      this.flattenTree(rootTree, null, 0, [], [], nodes, lines);
+      this.flattenTree(rootTree, null, [], nodes, lines);
       return {
         rootId: rootTree.id,
         nodes,
         lines
       };
     },
-    flattenTree(treeNode, parentNode, depth, pathIds, pathTexts, nodes, lines) {
+    flattenTree(treeNode, parentNode, pathTexts, nodes, lines) {
       const children = Array.isArray(treeNode.children) ? treeNode.children : [];
       const isLeaf = children.length === 0;
-      const description = this.getNodeDescription(depth, isLeaf);
-      const currentPathIds = pathIds.concat(treeNode.id);
+      const baseData = treeNode.data || {};
       const currentPathTexts = pathTexts.concat(treeNode.text);
-      const type = isLeaf ? this.getLeafType(treeNode.id) : '';
+      const description = baseData.description || (isLeaf ? '技术点' : '技术领域');
+      const pointCode = baseData.cid || treeNode.id;
+      const type = baseData.type || (isLeaf ? this.getLeafType(treeNode.id) : '');
       nodes.push({
         id: treeNode.id,
         text: treeNode.text,
         data: {
-          cid: treeNode.id,
-          pid: parentNode ? parentNode.id : '',
-          pointCode: treeNode.id,
+          ...baseData,
+          cid: pointCode,
+          pid: parentNode ? parentNode.id : (baseData.pid || ''),
+          pointCode,
           description,
-          relationCategory: !isLeaf && description === '技术领域' ? treeNode.id : '',
-          categoryPath: currentPathIds.join('/'),
+          relationCategory: baseData.relationCategory || (!isLeaf && description === '技术领域' ? pointCode : ''),
+          categoryPath: baseData.categoryPath || currentPathTexts.join('/'),
           categoryNamePath: currentPathTexts.join(' / '),
-          solution: currentPathTexts.join(' / '),
+          solution: baseData.solution || currentPathTexts.join(' / '),
           type,
-          q_value: isLeaf ? '-' : '',
-          c_value: isLeaf ? '-' : '',
-          t_value: isLeaf ? '-' : ''
+          q_value: baseData.q_value ?? '',
+          c_value: baseData.c_value ?? '',
+          t_value: baseData.t_value ?? ''
         },
         className: this.getNodeClassName(description, type),
-        width: depth === 0 ? 240 : 220,
+        width: description === '技术货架' ? 240 : 220,
         height: 72
       });
       if (parentNode) {
@@ -612,22 +624,13 @@ export default {
           from: parentNode.id,
           to: treeNode.id,
           color: '#666',
-          lineShape: LINE_SHAPE_ORTHOGONAL,
+          lineShape: RGLineShape.StandardOrthogonal,
           showEndArrow: false
         });
       }
-      children.forEach(child => {
-        this.flattenTree(child, treeNode, depth + 1, currentPathIds, currentPathTexts, nodes, lines);
+      children.forEach((child) => {
+        this.flattenTree(child, treeNode, currentPathTexts, nodes, lines);
       });
-    },
-    getNodeDescription(depth, isLeaf) {
-      if (depth === 0) {
-        return '技术货架';
-      }
-      if (isLeaf) {
-        return '技术点';
-      }
-      return depth === 1 ? '产品大类' : '技术领域';
     },
     getLeafType(nodeId) {
       const hash = String(nodeId || '').split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
@@ -810,6 +813,7 @@ export default {
   .search-select-wrapper {
     width: 300px;
     padding: 0 0 8px 10px;
+    pointer-events: all;
   }
 }
 </style>

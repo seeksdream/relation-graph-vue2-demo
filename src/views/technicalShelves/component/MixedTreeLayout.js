@@ -8,11 +8,12 @@ export default class MixedTreeLayout {
     this.graphInstance = graphInstance;
   }
 
-  async apply(jsonData) {
-    if (!jsonData || !Array.isArray(jsonData.nodes) || jsonData.nodes.length === 0) {
+  async apply() {
+    const nodes = this.graphInstance.getNodes();
+    if (!Array.isArray(nodes) || nodes.length === 0) {
       return;
     }
-    const { rootId, childrenMap } = this.buildTreeMeta(jsonData);
+    const { rootId, childrenMap } = await this.buildTreeMeta();
     if (!rootId) {
       return;
     }
@@ -24,7 +25,6 @@ export default class MixedTreeLayout {
     if (levelOneIds.length === 0) {
       this.graphInstance.updateNodePosition(rootNode, 0, 0);
       this.applyLineStyles(rootId, levelOneIds);
-      this.graphInstance.dataUpdated();
       return;
     }
 
@@ -50,7 +50,7 @@ export default class MixedTreeLayout {
         layoutExpansionDirection: 'end'
       });
       layouter.placeNodes(groupNodes, groupRootNode);
-      const groupBounds = this.getNodesBounds(groupNodes);
+      const groupBounds = this.graphInstance.getNodesRectBox(groupNodes);
       nextGroupX = groupBounds.maxX + GROUP_HORIZONTAL_GAP;
       allGroupNodes.push(...groupNodes);
     });
@@ -59,23 +59,24 @@ export default class MixedTreeLayout {
       return;
     }
 
-    const groupBounds = this.getNodesBounds(allGroupNodes);
+    const groupBounds = this.graphInstance.getNodesRectBox(allGroupNodes);
     const rootWidth = this.getNodeWidth(rootNode);
     const rootHeight = this.getNodeHeight(rootNode);
     const rootX = groupBounds.minX + (groupBounds.width - rootWidth) / 2;
     const rootY = groupBounds.minY - rootHeight - ROOT_VERTICAL_OFFSET;
     this.graphInstance.updateNodePosition(rootNode, rootX, rootY);
     this.applyLineStyles(rootId, levelOneIds);
-    this.graphInstance.dataUpdated();
   }
 
-  buildTreeMeta(jsonData) {
+  buildTreeMeta() {
+    const nodes = this.graphInstance.getNodes();
+    const lines = this.graphInstance.getLines();
     const childrenMap = {};
     const parentMap = {};
-    jsonData.nodes.forEach((node) => {
+    nodes.forEach((node) => {
       childrenMap[node.id] = [];
     });
-    jsonData.lines.forEach((line) => {
+    lines.forEach((line) => {
       if (!line || !line.from || !line.to) {
         return;
       }
@@ -85,7 +86,7 @@ export default class MixedTreeLayout {
       childrenMap[line.from].push(line.to);
       parentMap[line.to] = line.from;
     });
-    const rootId = jsonData.rootId || jsonData.nodes.find((node) => !parentMap[node.id])?.id;
+    const rootId = this.graphInstance.getRootNode()?.id || nodes.find((node) => !parentMap[node.id])?.id;
     return { rootId, childrenMap };
   }
 
@@ -119,44 +120,6 @@ export default class MixedTreeLayout {
       }
     });
   }
-
-  getNodesBounds(nodes) {
-    if (!Array.isArray(nodes) || nodes.length === 0) {
-      return {
-        minX: 0,
-        minY: 0,
-        maxX: 0,
-        maxY: 0,
-        width: 0,
-        height: 0
-      };
-    }
-    let minX = Number.POSITIVE_INFINITY;
-    let minY = Number.POSITIVE_INFINITY;
-    let maxX = Number.NEGATIVE_INFINITY;
-    let maxY = Number.NEGATIVE_INFINITY;
-
-    nodes.forEach((node) => {
-      const nodeX = typeof node.x === 'number' ? node.x : 0;
-      const nodeY = typeof node.y === 'number' ? node.y : 0;
-      const nodeWidth = this.getNodeWidth(node);
-      const nodeHeight = this.getNodeHeight(node);
-      minX = Math.min(minX, nodeX);
-      minY = Math.min(minY, nodeY);
-      maxX = Math.max(maxX, nodeX + nodeWidth);
-      maxY = Math.max(maxY, nodeY + nodeHeight);
-    });
-
-    return {
-      minX,
-      minY,
-      maxX,
-      maxY,
-      width: maxX - minX,
-      height: maxY - minY
-    };
-  }
-
   getNodeWidth(node) {
     return node.el_W || node.width || 220;
   }
