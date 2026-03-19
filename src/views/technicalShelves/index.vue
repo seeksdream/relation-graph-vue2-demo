@@ -58,7 +58,7 @@ import { RGProvider } from '@relation-graph/vue2';
 import TreeXMind from '@/views/technicalShelves/component/relationGraph.vue';
 import FakeTree from '@/views/technicalShelves/fake-components/FakeTree.vue';
 import FakeInspector from '@/views/technicalShelves/fake-components/FakeInspector.vue';
-import { myTreeJsonData } from '@/views/technicalShelves/component/data';
+import { myTreeJsonData } from '@/views/technicalShelves/component/data-2';
 
 export default {
   name: 'TechnicalShelvesView',
@@ -184,7 +184,7 @@ export default {
     },
     async downloadPdf() {
       if (this.$refs.graphRef) {
-        await this.$refs.graphRef.download();
+        await this.$refs.graphRef.downloadAdvance();
       }
     }
   }

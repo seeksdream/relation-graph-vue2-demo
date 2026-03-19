@@ -108,8 +108,8 @@ import { RelationGraph, graphStoreMixin, RGJunctionPoint, RGLineShape } from '@r
 import { findProductCategory } from '@/utils/categoryUtils';
 import { CookieUtils } from '@/utils/cookieUtil';
 import MixedTreeLayout from './MixedTreeLayout';
-import { blobToBase64, domToImageByModernScreenshot } from './domToImageByModernScreenshot';
-import { fetchTreeJsonData } from './data';
+import {blobToBase64, domToImageByModernScreenshot, downloadBlob} from './domToImageByModernScreenshot';
+import { fetchTreeJsonData } from './data-2';
 
 const LEAF_STATUS_TYPES = ['01', '02', '03', '06'];
 
@@ -169,6 +169,7 @@ export default {
         defaultLineShape: RGLineShape.StandardOrthogonal,
         defaultNodeBorderWidth: 0,
         defaultNodeWidth: 220,
+          // performanceMode: true,
         defaultNodeHeight: 72,
           defaultNodeColor: 'transparent',
         layout: {
@@ -186,6 +187,7 @@ export default {
         defaultJunctionPoint: 'lr',
         defaultNodeBorderWidth: 0,
           defaultNodeColor: 'transparent',
+          // performanceMode: true,
         defaultNodeWidth: 220,
         defaultNodeHeight: 72,
         layout: {
@@ -244,6 +246,7 @@ export default {
     currentTreeNode: {
       handler(val) {
         if (val) {
+            console.log('currentTreeNode:changed:::::', val);
           this.getList(val);
         }
       },
@@ -253,7 +256,7 @@ export default {
     backgroundColor: {
       handler() {
         if (this.jsonData.nodes.length > 0) {
-          this.renderCurrentGraph();
+          // this.renderCurrentGraph();
         }
       },
       immediate: true
@@ -261,7 +264,11 @@ export default {
     active: {
       handler() {
         if (this.jsonData.nodes.length > 0) {
-          this.renderCurrentGraph();
+          // this.renderCurrentGraph();
+            this.layoutMyGraphData().then(() => {
+                this.graphInstance.moveToCenter();
+                this.graphInstance.zoomToFit();
+            });
         }
       },
       immediate: true
@@ -306,8 +313,10 @@ export default {
         return;
       }
       this.graphInstance.setOptions(this.getActiveGraphOptions());
+        this.graphInstance.loading('请稍等...');
       const currentJsonData = _.cloneDeep(this.jsonData);
         this.graphInstance.clearGraph();
+        await this.graphInstance.sleep(200);
       this.graphInstance.addNodes(currentJsonData.nodes);
       this.graphInstance.addLines(currentJsonData.lines);
       if (currentJsonData.rootId) {
@@ -316,6 +325,12 @@ export default {
       await this.layoutMyGraphData();
       this.graphInstance.moveToCenter();
       this.graphInstance.zoomToFit();
+        await this.graphInstance.sleep(this.graphInstance.getNodes() * 3);
+        this.graphInstance.updateNodesVisibleProperty();
+        await this.layoutMyGraphData();
+        this.graphInstance.moveToCenter();
+        this.graphInstance.zoomToFit();
+        this.graphInstance.clearLoading();
     },
     async layoutMyGraphData() {
       if (this.active === '2') {
@@ -371,32 +386,250 @@ export default {
       }
       return '';
     },
+    getDownloadExportBackgroundColor() {
+      let graphBackgroundColor = this.graphInstance.getOptions().backgroundColor;
+      if (!graphBackgroundColor || graphBackgroundColor === 'transparent') {
+        graphBackgroundColor = '#ffffff';
+      }
+      return graphBackgroundColor;
+    },
+    getDownloadExportSize(canvasDom) {
+      const canvasRect = canvasDom && canvasDom.getBoundingClientRect ? canvasDom.getBoundingClientRect() : { width: 0, height: 0 };
+      const styleWidth = canvasDom && canvasDom.style && canvasDom.style.width ? parseFloat(canvasDom.style.width) : 0;
+      const styleHeight = canvasDom && canvasDom.style && canvasDom.style.height ? parseFloat(canvasDom.style.height) : 0;
+      const exportWidth = Math.max(
+        Math.ceil(canvasRect.width || 0),
+        Math.ceil(canvasDom && canvasDom.scrollWidth ? canvasDom.scrollWidth : 0),
+        Math.ceil(canvasDom && canvasDom.clientWidth ? canvasDom.clientWidth : 0),
+        Math.ceil(styleWidth || 0)
+      );
+      const exportHeight = Math.max(
+        Math.ceil(canvasRect.height || 0),
+        Math.ceil(canvasDom && canvasDom.scrollHeight ? canvasDom.scrollHeight : 0),
+        Math.ceil(canvasDom && canvasDom.clientHeight ? canvasDom.clientHeight : 0),
+        Math.ceil(styleHeight || 0)
+      );
+      return {
+        exportWidth,
+        exportHeight
+      };
+    },
+    async captureGraphBlob(canvasDom, {
+      width,
+      height,
+      backgroundColor,
+      scale = 1,
+      maximumCanvasSize = 8192,
+      offsetY = 0,
+      sourceWidth = 0,
+      sourceHeight = 0
+    }) {
+      const options = {
+        width,
+        height,
+        backgroundColor,
+        scale,
+        maximumCanvasSize
+      };
+      if (offsetY > 0) {
+        options.style = {
+          position: 'relative',
+          left: '0px',
+          top: `-${offsetY}px`,
+          width: `${sourceWidth || width}px`,
+          height: `${sourceHeight || height}px`,
+          overflow: 'visible'
+        };
+      }
+      try {
+        return await domToImageByModernScreenshot(canvasDom, options);
+      } catch (error) {
+        return null;
+      }
+    },
     async download() {
       if (!this.graphInstance) {
         return;
       }
-      const ids = this.jsonData.lines.map(line => line.from);
-      const targetNodeIds = _.uniq(ids);
-      await Promise.all(targetNodeIds.map((item) => {
-        const targetNode = this.graphInstance.getNodeById(item);
-        return targetNode ? this.graphInstance.expandNode(targetNode) : Promise.resolve();
-      }));
-      this.imageBase64 = await this.generateImageBase64();
-      if (!this.imageBase64) {
+      const exportMaxCanvasSize = 8192;
+      const exportScale = 2;
+      const safeExportMaxCanvasSize = 4096;
+      const ultraLargePrimaryMaxCanvasSize = 12000;
+      const ultraLargeFallbackMaxCanvasSize = 8192;
+      const largeGraphEdgeThreshold = 6500;
+      const largeGraphAreaThreshold = 28000000;
+      const ultraLargeGraphEdgeThreshold = 10000;
+      const ultraLargeGraphAreaThreshold = 60000000;
+      const minValidBlobSize = 128;
+      let canvasDom = null;
+      let needRestore = false;
+      try {
+        canvasDom = await this.graphInstance.prepareForImageGeneration();
+        needRestore = true;
+        const { exportWidth, exportHeight } = this.getDownloadExportSize(canvasDom);
+        const isLargeGraphForExport = exportWidth > largeGraphEdgeThreshold
+          || exportHeight > largeGraphEdgeThreshold
+          || (exportWidth * exportHeight) > largeGraphAreaThreshold;
+        const isUltraLargeGraphForExport = exportWidth > ultraLargeGraphEdgeThreshold
+          || exportHeight > ultraLargeGraphEdgeThreshold
+          || (exportWidth * exportHeight) > ultraLargeGraphAreaThreshold;
+        const primaryScale = isLargeGraphForExport ? 1 : exportScale;
+        const primaryMaximumCanvasSize = isUltraLargeGraphForExport ? ultraLargePrimaryMaxCanvasSize : exportMaxCanvasSize;
+        const fallbackMaximumCanvasSize = isUltraLargeGraphForExport ? ultraLargeFallbackMaxCanvasSize : safeExportMaxCanvasSize;
+        if (exportWidth <= 0 || exportHeight <= 0) {
+          return;
+        }
+
+        const graphBackgroundColor = this.getDownloadExportBackgroundColor();
+        let imageBlob = await this.captureGraphBlob(canvasDom, {
+          width: exportWidth,
+          height: exportHeight,
+          backgroundColor: graphBackgroundColor,
+          scale: primaryScale,
+          maximumCanvasSize: primaryMaximumCanvasSize
+        });
+        if (!imageBlob || imageBlob.size <= 0 || imageBlob.size < minValidBlobSize) {
+          imageBlob = await this.captureGraphBlob(canvasDom, {
+            width: exportWidth,
+            height: exportHeight,
+            backgroundColor: graphBackgroundColor,
+            scale: 1,
+            maximumCanvasSize: fallbackMaximumCanvasSize
+          });
+        }
+        if (imageBlob && imageBlob.size > 0 && imageBlob.size < minValidBlobSize) {
+          imageBlob = await this.captureGraphBlob(canvasDom, {
+            width: exportWidth,
+            height: exportHeight,
+            backgroundColor: graphBackgroundColor,
+            scale: 1,
+            maximumCanvasSize: safeExportMaxCanvasSize
+          });
+        }
+        if (imageBlob) {
+          downloadBlob(imageBlob, 'graph-export');
+        }
+      } catch (error) {
+        console.error('download failed:', error);
+      } finally {
+        if (needRestore) {
+          await this.graphInstance.restoreAfterImageGeneration();
+        }
+      }
+    },
+    async downloadAdvance() {
+      if (!this.graphInstance) {
         return;
       }
-
-      const img = new Image();
-      img.src = this.imageBase64;
-      img.onload = () => {
-        const doc = new jsPDF({
-          orientation: img.width > img.height ? 'landscape' : 'portrait',
-          unit: 'px',
-          format: [img.width, img.height]
+      const minValidBlobSize = 128;
+      const sliceHeight = 4096;
+      const primaryMaximumCanvasSize = 12000;
+      const fallbackMaximumCanvasSize = 8192;
+      const safeMaximumCanvasSize = 4096;
+      const traceId = `download-advance-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const totalLabel = `[relationGraph][${traceId}] total`;
+      let canvasDom = null;
+      let needRestore = false;
+      console.time(totalLabel);
+      console.log(`[relationGraph][${traceId}] progress 0% - start`);
+      this.graphInstance.loading('请稍等... 0%');
+      try {
+        canvasDom = await this.graphInstance.prepareForImageGeneration();
+        needRestore = true;
+        const { exportWidth, exportHeight } = this.getDownloadExportSize(canvasDom);
+        if (exportWidth <= 0 || exportHeight <= 0) {
+          console.warn(`[relationGraph][${traceId}] progress 100% - aborted: invalid export size`, {
+            exportWidth,
+            exportHeight
+          });
+          this.graphInstance.loading('请稍等... 100%');
+          return;
+        }
+        const graphBackgroundColor = this.getDownloadExportBackgroundColor();
+        const sliceCount = Math.max(1, Math.ceil(exportHeight / sliceHeight));
+        console.log(`[relationGraph][${traceId}] progress 5% - prepared`, {
+          exportWidth,
+          exportHeight,
+          sliceHeight,
+          sliceCount
         });
-        doc.addImage(this.imageBase64, 'PNG', 0, 0, img.width, img.height);
-        doc.save(`${this.$t('jmLab.Y000966')}.pdf`);
-      };
+        this.graphInstance.loading('请稍等... 5%');
+
+        let pdfDoc = null;
+        for (let sliceIndex = 0; sliceIndex < sliceCount; sliceIndex += 1) {
+          const offsetY = sliceIndex * sliceHeight;
+          const currentHeight = Math.min(sliceHeight, exportHeight - offsetY);
+          console.log(`[relationGraph][${traceId}] capturing ${sliceIndex + 1}/${sliceCount}`);
+          let imageBlob = await this.captureGraphBlob(canvasDom, {
+            width: exportWidth,
+            height: currentHeight,
+            backgroundColor: graphBackgroundColor,
+            scale: 1,
+            maximumCanvasSize: primaryMaximumCanvasSize,
+            offsetY,
+            sourceWidth: exportWidth,
+            sourceHeight: exportHeight
+          });
+          if (!imageBlob || imageBlob.size <= 0 || imageBlob.size < minValidBlobSize) {
+            imageBlob = await this.captureGraphBlob(canvasDom, {
+              width: exportWidth,
+              height: currentHeight,
+              backgroundColor: graphBackgroundColor,
+              scale: 1,
+              maximumCanvasSize: fallbackMaximumCanvasSize,
+              offsetY,
+              sourceWidth: exportWidth,
+              sourceHeight: exportHeight
+            });
+          }
+          if (!imageBlob || imageBlob.size <= 0 || imageBlob.size < minValidBlobSize) {
+            imageBlob = await this.captureGraphBlob(canvasDom, {
+              width: exportWidth,
+              height: currentHeight,
+              backgroundColor: graphBackgroundColor,
+              scale: 1,
+              maximumCanvasSize: safeMaximumCanvasSize,
+              offsetY,
+              sourceWidth: exportWidth,
+              sourceHeight: exportHeight
+            });
+          }
+          if (!imageBlob || imageBlob.size <= 0 || imageBlob.size < minValidBlobSize) {
+            throw new Error(`Slice ${sliceIndex + 1}/${sliceCount} capture failed`);
+          }
+          const imageBase64 = await blobToBase64(imageBlob);
+          const pageOrientation = exportWidth > currentHeight ? 'landscape' : 'portrait';
+          if (!pdfDoc) {
+            pdfDoc = new jsPDF({
+              orientation: pageOrientation,
+              unit: 'px',
+              format: [exportWidth, currentHeight],
+              compress: true
+            });
+          } else {
+            pdfDoc.addPage([exportWidth, currentHeight], pageOrientation);
+            pdfDoc.setPage(sliceIndex + 1);
+          }
+          pdfDoc.addImage(imageBase64, 'PNG', 0, 0, exportWidth, currentHeight, undefined, 'FAST');
+          const progressPercent = Math.min(95, Math.round(((sliceIndex + 1) / sliceCount) * 90) + 5);
+          console.log(`[relationGraph][${traceId}] progress ${progressPercent}% - page ${sliceIndex + 1}/${sliceCount} ready`);
+          this.graphInstance.loading(`请稍等... ${progressPercent}%`);
+        }
+        if (pdfDoc) {
+          this.graphInstance.loading('请稍等... 99%');
+          pdfDoc.save('graph-export.pdf');
+          console.log(`[relationGraph][${traceId}] progress 100% - pdf saved`);
+          this.graphInstance.loading('请稍等... 100%');
+        }
+      } catch (error) {
+        console.error(`[relationGraph][${traceId}] downloadAdvance failed`, error);
+      } finally {
+        if (needRestore) {
+          await this.graphInstance.restoreAfterImageGeneration();
+        }
+        this.graphInstance.clearLoading();
+        console.timeEnd(totalLabel);
+      }
     },
     showNodeMenus(nodeObject, $event) {
       if (!this.graphInstance || !nodeObject) {
@@ -540,6 +773,7 @@ export default {
       this.isShowNodeTipsPanel = false;
     },
     async getList(obj) {
+        console.log('getList:::::', obj)
       try {
         this.loading = true;
         this.isShowNodeTipsPanel = false;
@@ -557,6 +791,7 @@ export default {
     async resolveTreeRoot(obj) {
       const treeRoot = await fetchTreeJsonData(obj);
       const targetId = obj && obj.row ? obj.row.key || obj.row.pointCode : '';
+      console.log('resolveTreeRoot::::', targetId);
       if (!targetId) {
         return _.cloneDeep(treeRoot);
       }
