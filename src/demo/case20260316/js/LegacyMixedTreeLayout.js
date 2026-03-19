@@ -21,6 +21,7 @@ export default class LegacyMixedTreeLayout {
   }
 
   async apply(jsonData, direction = MIX_LAYOUT_DIRECTION.VERTICAL) {
+
     if (!jsonData || !Array.isArray(jsonData.nodes) || jsonData.nodes.length === 0) {
       return
     }
@@ -41,30 +42,32 @@ export default class LegacyMixedTreeLayout {
 
     const allGroupNodes = []
     let nextPrimary = 0
+    if (direction === MIX_LAYOUT_DIRECTION.VERTICAL) {
+      level1Ids.forEach((groupRootId) => {
+        const groupNodes = this.getSubtreeNodes(groupRootId, childrenMap)
+        if (groupNodes.length === 0) {
+          return
+        }
+        const groupRootNode = this.graphInstance.getNodeById(groupRootId)
+        if (!groupRootNode) {
+          return
+        }
+        const anchor = direction === MIX_LAYOUT_DIRECTION.VERTICAL
+            ? { x: nextPrimary, y: ROOT_GAP[direction] }
+            : { x: ROOT_GAP[direction], y: nextPrimary }
+        this.graphInstance.setNodePosition(groupRootNode, anchor.x, anchor.y)
+        const groupLayout = this.graphInstance.createLayout(this.getGroupLayoutOptions(direction))
+        groupLayout.isMainLayouer = false
+        groupLayout.layoutOptions.fixedRootNode = true
+        groupLayout.placeNodes(groupNodes, groupRootNode)
+        allGroupNodes.push(...groupNodes)
+        const groupBox = this.graphInstance.getStuffSize(groupNodes)
+        nextPrimary = direction === MIX_LAYOUT_DIRECTION.VERTICAL
+            ? groupBox.maxX + GROUP_GAP[direction]
+            : groupBox.maxY + GROUP_GAP[direction]
+      })
+    }
 
-    level1Ids.forEach((groupRootId) => {
-      const groupNodes = this.getSubtreeNodes(groupRootId, childrenMap)
-      if (groupNodes.length === 0) {
-        return
-      }
-      const groupRootNode = this.graphInstance.getNodeById(groupRootId)
-      if (!groupRootNode) {
-        return
-      }
-      const anchor = direction === MIX_LAYOUT_DIRECTION.VERTICAL
-        ? { x: nextPrimary, y: ROOT_GAP[direction] }
-        : { x: ROOT_GAP[direction], y: nextPrimary }
-      this.graphInstance.setNodePosition(groupRootNode, anchor.x, anchor.y)
-      const groupLayout = this.graphInstance.createLayout(this.getGroupLayoutOptions(direction))
-      groupLayout.isMainLayouer = false
-      groupLayout.layoutOptions.fixedRootNode = true
-      groupLayout.placeNodes(groupNodes, groupRootNode)
-      allGroupNodes.push(...groupNodes)
-      const groupBox = this.graphInstance.getStuffSize(groupNodes)
-      nextPrimary = direction === MIX_LAYOUT_DIRECTION.VERTICAL
-        ? groupBox.maxX + GROUP_GAP[direction]
-        : groupBox.maxY + GROUP_GAP[direction]
-    })
 
     if (allGroupNodes.length === 0) {
       return
@@ -136,18 +139,11 @@ export default class LegacyMixedTreeLayout {
       return {
         layoutName: 'folder',
         from: 'left',
-        levelDistance: [300, 300],
-        min_per_height: 100,
-        max_per_height: 100,
+        levelDistance: [200, 200],
+        min_per_height: 62,
+        max_per_height: 62,
         layoutExpansionDirection: 'bottom'
       }
-    }
-    return {
-      layoutName: 'tree',
-      from: 'left',
-      treeNodeGapH: 18,
-      treeNodeGapV: 120,
-      layoutExpansionDirection: 'center'
     }
   }
 

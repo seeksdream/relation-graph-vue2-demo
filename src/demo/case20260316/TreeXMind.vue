@@ -106,16 +106,16 @@
 <script>
 import _ from 'lodash';
 import { jsPDF } from 'jspdf';
-import { getPointClassificationTree } from './technical-shelves';
+import { getPointClassificationTree, pointClassificationTree} from '@/api/technical-shelves';
+// import { pointClassificationTree } from '@/views/technicalShelves/js/technical-shelves';
 import { findProductCategory } from '@/utils/categoryUtils';
 import { CookieUtils } from '@/utils/cookieUtil';
 import RelationGraph from 'relation-graph-vue2';
-import LegacyMixedTreeLayout, { MIX_LAYOUT_DIRECTION } from './LegacyMixedTreeLayout';
-import {getSearchResult} from "@/demo/case20260316/searchData";
+import LegacyMixedTreeLayout, { MIX_LAYOUT_DIRECTION } from './js/LegacyMixedTreeLayout';
 
 export default {
   name: 'TreeXMind',
-    components: {RelationGraph},
+  components: { RelationGraph },
   props: {
     currentTreeNode: {
       type: Object,
@@ -162,7 +162,7 @@ export default {
         allowShowMiniToolBar: true,
         allowSwitchLineShape: true,
         allowSwitchJunctionPoint: true,
-        defaultExpandHolderPosition: 'bottom',
+        defaultExpandHolderPosition: 'right',
         useAnimationWhenRefresh: true,
         defaultNodeBorderWidth: 1,
         defaultNodeShape: 1,
@@ -183,8 +183,10 @@ export default {
         },
         layout: {
           layoutName: 'tree',
-            from: 'left',
-            levelDistance: [400, 400, 400, 400]
+          from: 'left',
+          levelDistance: [300, 300],
+          min_per_height: 50,
+          max_per_height: 50
         }
       },
       graphOptions: {
@@ -193,7 +195,7 @@ export default {
         allowShowMiniToolBar: true,
         allowSwitchLineShape: true,
         allowSwitchJunctionPoint: true,
-        defaultExpandHolderPosition: 'right',
+        defaultExpandHolderPosition: 'bottom',
         useAnimationWhenRefresh: true,
         defaultNodeBorderWidth: 1,
         defaultLineShape: 44,
@@ -212,7 +214,10 @@ export default {
           data: 'M2,2 L10,6 L2,10 L6,6 L2,2'
         },
         layout: {
-          layoutName: 'fixed'
+          layoutName: 'fixed',
+          levelDistance: [300, 300],
+          min_per_height: 50,
+          max_per_height: 50
         },
         backgroundColor: ''
       },
@@ -331,14 +336,16 @@ export default {
       if (this.jsonData.nodes.length === 0) {
         return
       }
-      const searchedData = _.cloneDeep(await getSearchResult());
-      await graphRef.setJsonData(searchedData)
-      // await graphRef.setJsonData(_.cloneDeep(this.jsonData))
+      this.jsonData.nodes.forEach(node => {
+        node.width = 120
+      })
+      await graphRef.setJsonData(_.cloneDeep(this.jsonData))
+      console.log('this.jsonData', this.jsonData)
       const mixLayout = new LegacyMixedTreeLayout(graphInstance)
-      await mixLayout.apply(searchedData, this.getCurrentLayoutDirection())
-        await graphInstance.setZoom(100);
-        await graphInstance.moveToCenter()
-        await graphInstance.zoomToFit()
+      await mixLayout.apply(this.jsonData, this.getCurrentLayoutDirection())
+      await graphInstance.setZoom(100);
+      await graphInstance.moveToCenter()
+      await graphInstance.zoomToFit()
     },
     async showGraph() {
       this.jsonData = {
@@ -405,6 +412,7 @@ export default {
       await this.renderCurrentGraph()
     },
     onNodeClick(nodeObject, $event) {
+      console.log('onNodeClick:', nodeObject, $event)
       if (!this.currentTreeNode) return
       if (nodeObject.data.description === '技术点') {
         this.$emit('customBtn', { type: 'detail', row: { ...nodeObject.data, pointName: nodeObject.text }})
@@ -593,7 +601,8 @@ export default {
           cid: obj.row.key,
           pointCode: obj.row.pointCode
         })
-        if (!treeData || treeData.length === 0) {
+        const pointClassificationTreeData = await pointClassificationTree(treeData)
+        if (!pointClassificationTreeData || pointClassificationTreeData.length === 0) {
           this.jsonData = {
             rootId: '',
             nodes: [],
@@ -601,7 +610,7 @@ export default {
           }
           return
         }
-        this.jsonData = treeData
+        this.jsonData = pointClassificationTreeData
         await this.renderCurrentGraph()
       } catch (e) {
         console.warn(e)
@@ -631,12 +640,9 @@ export default {
   height: 100%;
   .c-my-rg-node {
     border-radius: 4px;
-    line-height: 28px;
-      height: 80px;
-      width: 200px;
-      display: flex;
-      place-items: center;
-      justify-content: center;
+    line-height: 30px;
+    min-width: 80px;
+    max-width: 140px;
     font-size: 14px;
     border: 1px solid #868181;
     color: #333;
