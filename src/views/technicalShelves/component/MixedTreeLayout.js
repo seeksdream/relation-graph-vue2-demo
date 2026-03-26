@@ -45,7 +45,7 @@ export default class MixedTreeLayout {
         layoutName: 'folder',
         from: 'left',
         simpleTree: true,
-        treeNodeGapH: 10,
+        treeNodeGapH: -150,
         treeNodeGapV: 24,
         layoutExpansionDirection: 'end'
       });
@@ -115,6 +115,7 @@ export default class MixedTreeLayout {
       line.showEndArrow = false;
       line.fromJunctionPoint = isRootLine ? 'bottom' : 'bottom';
       line.toJunctionPoint = isRootLine ? 'top' : 'left';
+      line.fromJunctionPointOffsetX = isRootLine ? 0 : -70;
       if (!line.color) {
         line.color = '#666';
       }
